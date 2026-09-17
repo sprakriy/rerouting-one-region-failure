@@ -168,6 +168,7 @@ jobs:
         run: |
           # Pull the current in-memory state from the runner's disk 
           # and save it as a local file.
+          export PATH="$PATH:$GITHUB_PATH"
           terraform state pull > failed_state.tfstate
       - name: Upload State Artifact
         if: failure()
