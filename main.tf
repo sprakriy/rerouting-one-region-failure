@@ -4,19 +4,51 @@ module "ecr" {
   source = "./modules/ecr"
 }
 
-module "networking" {
+# --- REGION A STACK (Inherits default us-east-1 provider automatically) ---
+module "networking_a" {
   source      = "./modules/networking"
-  environment = "prod"
+  environment = "prod-us-east-1"
 }
 
-module "ecs" {
+module "ecs_a" {
   source           = "./modules/ecs"
-  environment      = "prod"
+  environment      = "prod-us-east-1"
   repository_url   = module.ecr.repository_url
-  subnet_ids       = module.networking.public_subnet_ids
-  ecs_tasks_sg_id  = module.networking.ecs_tasks_sg_id
-  target_group_arn = module.networking.target_group_arn
+  subnet_ids       = module.networking_a.public_subnet_ids
+  ecs_tasks_sg_id  = module.networking_a.ecs_tasks_sg_id
+  target_group_arn = module.networking_a.target_group_arn
 }
+
+# --- REGION B STACK (Explicitly reaches out to provider.tf's alias) ---
+module "networking_b" {
+  source      = "./modules/networking"
+  providers   = { aws = aws.region_b } # <--- Links to provider.tf alias
+  environment = "prod-us-west-2"
+}
+
+module "ecs_b" {
+  source           = "./modules/ecs"
+  providers        = { aws = aws.region_b } # <--- Links to provider.tf alias
+  environment      = "prod-us-west-2"
+  repository_url   = module.ecr.repository_url
+  subnet_ids       = module.networking_b.public_subnet_ids
+  ecs_tasks_sg_id  = module.networking_b.ecs_tasks_sg_id
+  target_group_arn = module.networking_b.target_group_arn
+}
+
+# module "networking" {
+#   source      = "./modules/networking"
+#   environment = "prod"
+# }
+
+# module "ecs" {
+#   source           = "./modules/ecs"
+#   environment      = "prod"
+#   repository_url   = module.ecr.repository_url
+#   subnet_ids       = module.networking.public_subnet_ids
+#   ecs_tasks_sg_id  = module.networking.ecs_tasks_sg_id
+#   target_group_arn = module.networking.target_group_arn
+# }
 
 
 # OUTPUTS

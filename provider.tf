@@ -1,6 +1,11 @@
 provider "aws" {
   region = "us-east-1"
 }
+
+provider "aws" {
+  alias  = "region_b"
+  region = "us-west-2"
+}
 /*terraform {
   required_providers {
     aws = {
