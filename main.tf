@@ -52,9 +52,19 @@ module "ecs_b" {
 
 
 # OUTPUTS
-output "app_url" {
-  value = "http://${module.networking.alb_dns_name}"
+
+# output "app_url" {
+#   value = "http://${module.networking_a.alb_dns_name}"
+# }
+
+output "DEBUG_public_subnets_region_b" {
+  value = module.networking_b.public_subnet_ids
 }
+
+output "app_url_region_b" {
+  value = "http://${module.networking_b.alb_dns_name}"
+}
+
 # DIAGNOSTIC OUTPUTS
 output "DEBUG_image_url_from_ecr" {
   value = module.ecr.repository_url
