@@ -57,6 +57,15 @@ module "ecs_b" {
 #   value = "http://${module.networking_a.alb_dns_name}"
 # }
 
+output "DEBUG_public_subnets" {
+  value = module.networking_a.public_subnet_ids
+}
+
+output "app_url" {
+  value = "http://${module.networking_a.alb_dns_name}"
+}
+
+
 output "DEBUG_public_subnets_region_b" {
   value = module.networking_b.public_subnet_ids
 }
@@ -72,9 +81,13 @@ output "DEBUG_image_url_from_ecr" {
 }
 
 output "DEBUG_vpc_id" {
-  value = module.networking.vpc_id
+  value = module.networking_a.vpc_id
 }
 
-output "DEBUG_public_subnets" {
-  value = module.networking.public_subnet_ids
+output "DEBUG_vpc_id_b" {
+  value = module.networking_b.vpc_id 
 }
+
+# output "DEBUG_public_subnets" {
+#   value = module.networking.public_subnet_ids
+# }
