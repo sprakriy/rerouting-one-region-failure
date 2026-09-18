@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+
 # 1. VPC (The missing 'main' resource)
 resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
@@ -73,14 +81,14 @@ resource "aws_security_group" "ecs_tasks" {
 
 # 6. Load Balancer & Target Group
 resource "aws_lb" "main" {
-  name               = "ecs-alb-${environment}"
+  name               = "ecs-alb-${var.environment}"
   load_balancer_type = "application"
   subnets            = aws_subnet.public[*].id
   security_groups    = [aws_security_group.alb.id]
 }
 
 resource "aws_lb_target_group" "app" {
-  name        = "ecs-tg-${environment}"
+  name        = "ecs-tg-${var.environment}"
   port        = 80
   protocol    = "HTTP"
   vpc_id      = aws_vpc.main.id
