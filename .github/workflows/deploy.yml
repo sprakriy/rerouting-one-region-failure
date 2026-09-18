@@ -62,26 +62,26 @@ jobs:
         run: terraform apply -auto-approve main.tfplan
         #        run: terraform plan -out=main.tfplan
 #        continue-on-error: true # Continue even if plan finds no changes or errors
-      - name: Check if changes were planned
-        id: plan_check
-        run: |
-          if [ -s tfplan ];then # Check if plan file is non-empty
-            echo "changes_planned=true" >> $GITHUB_OUTPUT
-          else
-            echo "changes_planned=false" >> $GITHUB_OUTPUT
-          fi
+      # - name: Check if changes were planned
+      #   id: plan_check
+      #   run: |
+      #     if [ -s main.tfplan ];then # Check if plan file is non-empty
+      #       echo "changes_planned=true" >> $GITHUB_OUTPUT
+      #     else
+      #       echo "changes_planned=false" >> $GITHUB_OUTPUT
+      #     fi
 #        env:
 #          # This maps the login output directly to the Terraform environment
 #          AWS_ACCESS_KEY_ID: ${{ steps.login.outputs.aws-access-key-id }}
 #           AWS_SECRET_ACCESS_KEY: ${{ steps.login.outputs.aws-secret-access-key }}
 #          AWS_SESSION_TOKEN: ${{ steps.login.outputs.aws-session-token }}
 #          AWS_REGION: us-east-1
-      - name: Print this terraform step
-        run: |
-          echo "Reached Terraform Apply Step"
-      - name: Terraform Apply (Only if changes exist)
-        if: steps.plan_check.outputs.changes_planned == 'true'
-        run: terraform apply main.tfplan
+      # - name: Print this terraform step
+      #   run: |
+      #     echo "Reached Terraform Apply Step"
+      # - name: Terraform Apply (Only if changes exist)
+      #   if: steps.plan_check.outputs.changes_planned == 'true'
+      #   run: terraform apply main.tfplan
 #      - name: Terraform Apply
 #        run: terraform apply main.tfplan
 
@@ -163,13 +163,18 @@ jobs:
       # STEP C: Now that an image DEFINITELY exists, run the full 21 resources
       - name: Terraform Apply (Full Stack)
         run: terraform apply -auto-approve
-      - name: Save State on Failure
-        if: failure() # Only triggers if a previous step (like Apply) fails
+
+      - name: Emergency Teardown on Failure
+        if: failure()
         run: |
-          # Pull the current in-memory state from the runner's disk 
-          # and save it as a local file.
+          echo "⚠️ Failure detected! Tearing down components automatically to stop cloud charges..."
+          terraform destroy -auto-approve || echo "No live resources found to clean."
+
+      - name: Save State on Failure
+        if: failure()
+        run: |
           export PATH="$PATH:$GITHUB_PATH"
-          terraform state pull > failed_state.tfstate
+          terraform state pull > failed_state.tfstate || echo "State tracking unavailable."
       - name: Upload State Artifact
         if: failure()
         uses: actions/upload-artifact@v4

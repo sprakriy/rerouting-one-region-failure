@@ -73,14 +73,14 @@ resource "aws_security_group" "ecs_tasks" {
 
 # 6. Load Balancer & Target Group
 resource "aws_lb" "main" {
-  name               = "ecs-alb"
+  name               = "ecs-alb-${environment}"
   load_balancer_type = "application"
   subnets            = aws_subnet.public[*].id
   security_groups    = [aws_security_group.alb.id]
 }
 
 resource "aws_lb_target_group" "app" {
-  name        = "ecs-tg"
+  name        = "ecs-tg-${environment}"
   port        = 80
   protocol    = "HTTP"
   vpc_id      = aws_vpc.main.id

@@ -1,3 +1,10 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
 # 1. Cluster
 resource "aws_ecs_cluster" "main" { 
   name = "app-cluster-${var.environment}" 
@@ -5,7 +12,7 @@ resource "aws_ecs_cluster" "main" {
 
 # 2. IAM Role (This was the missing piece!)
 resource "aws_iam_role" "exec" {
-  name = "ecs-exec-role"
+  name = "ecs-exec-role-${var.environment}"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
