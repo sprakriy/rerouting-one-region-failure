@@ -97,7 +97,7 @@ output "DEBUG_vpc_id_b" {
 # }
 # --- GLOBAL ACCELERATOR ---
 module "global_accelerator" {
-  source           = "./modules/GlobalAccelerator"
+  source           = "./modules/global_accelerator"
   region_a_alb_arn = module.networking_a.alb_arn
   region_b_alb_arn = module.networking_b.alb_arn
 }
