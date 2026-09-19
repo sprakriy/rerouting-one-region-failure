@@ -69,8 +69,8 @@ jobs:
         if: steps.check-image.outputs.build_required == 'true'
         run: |
           # Hardcoded to your exact target account registry destination path
-          docker build -t ://amazonaws.com .
-          docker push ://amazonaws.com
+          docker build -t ${{ steps.aws-login.outputs.aws-account-id }}.dkr.ecr.us-east-1.amazonaws.com/my-fargate-app:latest .
+          docker push ${{ steps.aws-login.outputs.aws-account-id }}.dkr.ecr.us-east-1.amazonaws.com/my-fargate-app:latest
 
       # STEP C: Combined full-stack apply utilizing your validated plan graph
       - name: Terraform Apply (Full Stack)
