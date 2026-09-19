@@ -1,3 +1,3 @@
 output "github_actions_role_arn" {
-  value = aws_iam_role.github_role.arn
+  value = data.aws_iam_role.github_role.arn
 }

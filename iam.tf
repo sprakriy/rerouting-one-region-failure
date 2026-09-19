@@ -38,10 +38,14 @@ resource "aws_iam_role" "github_role" {
   assume_role_policy = data.aws_iam_policy_document.github_allow.json
 }
 */
+data "aws_iam_role" "github_role" {
+  name = "aws-fargate-deployer-role"
+}
+
 # Attach a policy to allow ECR and ECS actions
 resource "aws_iam_role_policy" "github_policy" {
   name   = "github-deploy-permissions"
-  role   = aws_iam_role.github_role.id
+  role   = data.aws_iam_role.github_role.id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [

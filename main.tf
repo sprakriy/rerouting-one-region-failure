@@ -1,8 +1,12 @@
+data "aws_ecr_repository" "app_registry" {
+  name = "my-fargate-app"
+}
+
 # main.tf
 
-module "ecr" {
-  source = "./modules/ecr"
-}
+# module "ecr" {
+#   source = "./modules/ecr"
+# }
 
 # --- REGION A STACK (Inherits default us-east-1 provider automatically) ---
 module "networking_a" {
@@ -13,7 +17,7 @@ module "networking_a" {
 module "ecs_a" {
   source           = "./modules/ecs"
   environment      = "prod-us-east-1"
-  repository_url   = module.ecr.repository_url
+  repository_url   = data.aws_ecr_repository.app_registry.repository_url
   subnet_ids       = module.networking_a.public_subnet_ids
   ecs_tasks_sg_id  = module.networking_a.ecs_tasks_sg_id
   target_group_arn = module.networking_a.target_group_arn
@@ -30,7 +34,7 @@ module "ecs_b" {
   source           = "./modules/ecs"
   providers        = { aws = aws.region_b } # <--- Links to provider.tf alias
   environment      = "prod-us-west-2"
-  repository_url   = module.ecr.repository_url
+  repository_url   = data.aws_ecr_repository.app_registry.repository_url
   subnet_ids       = module.networking_b.public_subnet_ids
   ecs_tasks_sg_id  = module.networking_b.ecs_tasks_sg_id
   target_group_arn = module.networking_b.target_group_arn
@@ -75,10 +79,10 @@ output "app_url_region_b" {
 }
 
 # DIAGNOSTIC OUTPUTS
-output "DEBUG_image_url_from_ecr" {
-  value = module.ecr.repository_url
-  description = "This is the URL Terraform is grabbing from the ECR module"
-}
+# output "DEBUG_image_url_from_ecr" {
+#   value = module.ecr.repository_url
+#   description = "This is the URL Terraform is grabbing from the ECR module"
+# }
 
 output "DEBUG_vpc_id" {
   value = module.networking_a.vpc_id
