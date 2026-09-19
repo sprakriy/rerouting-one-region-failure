@@ -6,3 +6,6 @@ output "vpc_id" {
   value       = aws_vpc.main.id
   description = "The ID of the VPC"
 }
+output "alb_arn" {
+  value = aws_lb.main.arn
+}
