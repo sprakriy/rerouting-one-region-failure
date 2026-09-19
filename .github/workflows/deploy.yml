@@ -3,7 +3,7 @@ on:
  workflow_dispatch:
     inputs:
       name:
-        descripton: 'I would like to see how it works'
+        description: 'Manual trigger verification'
         required: false
         default: 'Manual trigger'
 jobs:
@@ -16,22 +16,19 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Checking AWS_ROLE_ARN secret
-        run: |
-          echo "AWS_ROLE_ARN is set to arn:aws:iam::319310747432:role/GitHubActionsServiceRole"
-      - name: Configure AWS Credentials (OIDC Test)
+
+      - name: Configure AWS Credentials (OIDC Handshake)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::319310747432:role/GitHubActionsServiceRole
           aws-region: us-east-1
+          role-session-name: GitHubActionsSession
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.12.2
-          terraform_wrapper: false # This is likely the missing link
-          aws-region: us-east-1
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          role-session-name: GitHubActionsSession
+          terraform_wrapper: false
 
       - name: Terraform Init
         run: terraform init -upgrade
@@ -39,147 +36,64 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: |
-          # Generate the plan
           terraform plan -no-color -out=main.tfplan
-          
-          # Create a header in the summary
           echo "## 📝 Terraform Plan Result" >> $GITHUB_STEP_SUMMARY
           echo "### Account: 319310747432" >> $GITHUB_STEP_SUMMARY
-          
-          # Add the plan summary (the last few lines showing add/change/destroy)
-          echo '```terraform' >> $GITHUB_STEP_SUMMARY
-          terraform show -no-color main.tfplan | tail -n 10 >> $GITHUB_STEP_SUMMARY
+          echo '```terraform' >> \$GITHUB_STEP_SUMMARY
+          terraform show -no-color main.tfplan | tail -n 10 >> \$GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+
       - name: Guardrail - Prevent Unintended Deletions
         run: |
-          # Look for "destroy" in the plan summary
           if terraform show -no-color main.tfplan | grep -E "plan:.*[1-9]+ to destroy"; then
             echo "❌ ERROR: A destruction was detected in the plan. Stopping workflow for safety!"
             exit 1
           fi
-      - name: Terraform Apply
-        if: success()
-        run: terraform apply -auto-approve main.tfplan
-        #        run: terraform plan -out=main.tfplan
-#        continue-on-error: true # Continue even if plan finds no changes or errors
-      # - name: Check if changes were planned
-      #   id: plan_check
-      #   run: |
-      #     if [ -s main.tfplan ];then # Check if plan file is non-empty
-      #       echo "changes_planned=true" >> $GITHUB_OUTPUT
-      #     else
-      #       echo "changes_planned=false" >> $GITHUB_OUTPUT
-      #     fi
-#        env:
-#          # This maps the login output directly to the Terraform environment
-#          AWS_ACCESS_KEY_ID: ${{ steps.login.outputs.aws-access-key-id }}
-#           AWS_SECRET_ACCESS_KEY: ${{ steps.login.outputs.aws-secret-access-key }}
-#          AWS_SESSION_TOKEN: ${{ steps.login.outputs.aws-session-token }}
-#          AWS_REGION: us-east-1
-      # - name: Print this terraform step
-      #   run: |
-      #     echo "Reached Terraform Apply Step"
-      # - name: Terraform Apply (Only if changes exist)
-      #   if: steps.plan_check.outputs.changes_planned == 'true'
-      #   run: terraform apply main.tfplan
-#      - name: Terraform Apply
-#        run: terraform apply main.tfplan
-
-      - name: Configure AWS Credentials (OIDC Test)
-        id: aws-login
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
-      - name: Checking ECR for existing image
-        run: |
-          echo "Reached ECR Check Step"
-
-#      - name: Check ECR for Existing Image
-#        id: check-ecr
-#        run: |
-#          # 1. Check if ECR Repo exists. If not, we need to run TF for ECR first.
-#          REPO_EXISTS=$(aws ecr describe-repositories --repository-names my-fargate-app 2>&1 || true)
-#          echo $REPO_EXISTS
-#          if [[ $REPO_EXISTS == *"RepositoryNotFoundException"* ]]; then
-#            echo "setup_state=no_repo" >> $GITHUB_OUTPUT
-#          else
-#            # 2. Check if there is at least one image
-#            IMAGE_COUNT=$(aws ecr list-images --repository-name my-fargate-app --query 'imageIds' --output json | jq '. | length')
-#            if [ "$IMAGE_COUNT" -eq "0" ]; then
-#              echo "setup_state=repo_empty" >> $GITHUB_OUTPUT
-#            else
-#              echo "setup_state=ready" >> $GITHUB_OUTPUT
-#            fi
-#          fi
-
-      # STEP A: If no repo exists, run Terraform just for the ECR/Networking
-#      - name: Terraform Apply (Initial Foundation)
-#        if: steps.check-ecr.outputs.setup_state == 'no_repo'
-#        run: terraform apply -target=aws_ecr_repository.app_repo
-      - name: Check ECR Status
-        id: check-ecr
-        run: |
-          # Use -q to be quiet and get the exit code directly
-          if aws ecr describe-repositories --repository-names my-fargate-app > /dev/null 2>&1; then
-            # Repo exists, now check images
-            IMAGE_COUNT=$(aws ecr list-images --repository-name my-fargate-app --query 'length(imageIds)' --output text)
-            if [ "$IMAGE_COUNT" -eq "0" ]; then
-              echo "setup_state=repo_empty" >> $GITHUB_OUTPUT
-            else
-              echo "setup_state=ready" >> $GITHUB_OUTPUT
-            fi
-          else
-            # Repo truly does not exist
-            echo "setup_state=no_repo" >> $GITHUB_OUTPUT
-          fi
-
-
-      - name: Terraform Apply (Initial Foundation)
-        # Use brackets for safer evaluation in GH expressions
-        if: ${{ steps.check-ecr.outputs.setup_state == 'no_repo' }}
-        run: terraform apply
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-      # STEP B: Build and Push Docker image (If repo was just created or is empty)
+
+      - name: Check for Existing Docker Image
+        id: check-image
+        run: |
+          # Safe image check query using native AWS metrics
+          IMAGE_EXISTS=$(aws ecr list-images --repository-name my-fargate-app --query "imageIds[?imageTag=='latest']" --output text || echo "")
+          if [ -z "$IMAGE_EXISTS" ]; then
+            echo "build_required=true" >> $GITHUB_OUTPUT
+          else
+            echo "build_required=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build, tag, and push image to Amazon ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: my-fargate-app
-          IMAGE_TAG: latest
-#      - name: Build & Push Docker Image
-        if: steps.check-ecr.outputs.setup_state != 'ready'
+        if: steps.check-image.outputs.build_required == 'true'
         run: |
-          docker build -t ${{ steps.aws-login.outputs.aws-account-id }}.dkr.ecr.us-east-1.amazonaws.com/my-fargate-app:latest .
-          docker push ${{ steps.aws-login.outputs.aws-account-id }}.dkr.ecr.us-east-1.amazonaws.com/my-fargate-app:latest
+          # Hardcoded to your exact target account registry destination path
+          docker build -t ://amazonaws.com .
+          docker push ://amazonaws.com
 
-      - name: Print Docker step B is done
-        run: |
-          echo "Reached STEP C"
-
-      # STEP C: Now that an image DEFINITELY exists, run the full 21 resources
+      # STEP C: Combined full-stack apply utilizing your validated plan graph
       - name: Terraform Apply (Full Stack)
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve main.tfplan
 
+      # AUTOMATED COST INSURANCE: Fires automatically if the apply crashes mid-flight
       - name: Emergency Teardown on Failure
         if: failure()
         run: |
-          echo "⚠️ Failure detected! Tearing down components automatically to stop cloud charges..."
+          echo "⚠️ Failure detected! Tearing down regional components automatically to stop cloud charges..."
           terraform destroy -auto-approve || echo "No live resources found to clean."
 
+      # Always attempt to preserve whatever state is left for local debugging
       - name: Save State on Failure
         if: failure()
         run: |
           export PATH="$PATH:$GITHUB_PATH"
           terraform state pull > failed_state.tfstate || echo "State tracking unavailable."
+
       - name: Upload State Artifact
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: terraform-failed-state
           path: failed_state.tfstate
-          retention-days: 5 # Keeps it for 5 days so you can debug
-
+          retention-days: 5
