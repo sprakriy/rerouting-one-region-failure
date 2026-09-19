@@ -95,3 +95,14 @@ output "DEBUG_vpc_id_b" {
 # output "DEBUG_public_subnets" {
 #   value = module.networking.public_subnet_ids
 # }
+# --- GLOBAL ACCELERATOR ---
+module "global_accelerator" {
+  source           = "./modules/GlobalAccelerator"
+  region_a_alb_arn = module.networking_a.alb_arn
+  region_b_alb_arn = module.networking_b.alb_arn
+}
+
+output "global_accelerator_dns" {
+  value       = module.global_accelerator.accelerator_dns_name
+  description = "The static DNS name for the multi-region Global Accelerator endpoint"
+}
