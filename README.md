@@ -1,29 +1,44 @@
-Production-Ready ECS Fargate CD Pipeline
-This project demonstrates a fully automated, serverless web application architecture on AWS using Terraform for Infrastructure as Code (IaC) and GitHub Actions for Continuous Deployment.
+# Multi-Region AWS Infrastructure with Global Accelerator & ECS
 
-🚀 Architecture Overview
-The infrastructure is built on a "Zero-Maintenance" philosophy using AWS Fargate to remove the need for EC2 instance management.
+This project provisions a resilient, multi-region architecture using Terraform and GitHub Actions, deploying an Amazon ECS Fargate application across two AWS regions (`us-east-1` and `us-west-2`) fronted by an AWS Global Accelerator.
 
-Compute: AWS ECS Fargate (Serverless Containers)
+## Architecture & Workflow Diagram
 
-Networking: Application Load Balancer (ALB) with Public/Private Security Group mapping.
+```mermaid
+graph TD
+    User([Client / Browser]) -->|Global IP| GA[AWS Global Accelerator]
+    GA -->|Active / Weight 128| ALB_A[ALB: us-east-1]
+    GA -->|Standby / Weight 128| ALB_B[ALB: us-west-2]
+    ALB_A --> ECS_A[ECS Fargate: Region A]
+    ALB_B --> ECS_B[ECS Fargate: Region B]
+```   
+Infrastructure Provisioning & Teardown via GitHub Actions
+1. Creation (apply.yml)
+To provision the entire multi-region stack through automated pipelines:
 
-CI/CD: GitHub Actions using OIDC (OpenID Connect) for secure, keyless authentication to AWS.
+Push your changes or manually trigger the GitHub Actions workflow to initialize the S3 backend and apply your Terraform configuration, building all networking, load balancing, compute, and Global Accelerator components.
 
-IaC: Modular Terraform configurations.
+2. Destruction (destroy.yml)
+To tear down the resources cleanly via GitHub Actions:
 
-🛠️ Key Features
-Zero-Secrets Deployment: Utilizes AWS IAM Identity Providers and OIDC to eliminate the need for storing long-lived AWS_ACCESS_KEY_ID in GitHub.
+Trigger the destroy workflow. It executes terraform destroy (incorporating state exemption handling for shared IAM/GitHub Actions roles) to ensure a complete teardown of all resources without leaving orphaned items or incurring lingering costs.
 
-Immutable Infrastructure: Every deployment generates a unique Docker image tag based on the Git Commit SHA, ensuring 100% traceability and easy rollbacks.
+Multi-Region Failover Testing Guide
+To verify that the Global Accelerator correctly handles regional outages and routes traffic seamlessly:
 
-Rolling Updates: ECS handles "Blue/Green" style deployments by draining old connections only after new containers pass health checks.
+Access the Application: Open your browser or run a curl command using your Global Accelerator DNS output to confirm traffic is loading successfully:
 
-Automated Scaling: (Optional) Integrated with App Auto Scaling to adjust container count based on real-time CPU utilization.
-| Component        | Technology                    |   |   |   |
-|------------------|-------------------------------|---|---|---|
-| Cloud Provider   | AWS (ECS, ECR, ALB, IAM, VPC) |   |   |   |
-| IaC              | Terraform                     |   |   |   |
-| CI/CD            | GitHub Actions                |   |   |   |
-| Containerization | Docker                        |   |   |   |
-| Language         | HTML/Nginx                    |   |   |   |
+curl -I http://<YOUR_ACCELERATOR_DNS>
+
+Simulate a Region A Outage: Scale down the ECS tasks in Region A to zero to force a health check failure:
+
+aws ecs update-service --cluster prod-us-east-1-cluster --service app-service --desired-count 0 --region us-east-1
+Verify Failover:
+
+Check the AWS Global Accelerator console under your listener's endpoint groups to observe Region A transition to an Unhealthy state (1 Unhealthy endpoints).
+
+Refresh your browser or curl endpoint; traffic will automatically reroute to Region B with a successful 200 OK response.
+
+Restore Normal Operation: Scale your Region A tasks back up to restore traffic distribution:
+
+aws ecs update-service --cluster prod-us-east-1-cluster --service app-service --desired-count 1 --region us-east-1
