@@ -69,9 +69,8 @@ jobs:
         if: steps.check-image.outputs.build_required == 'true'
         run: |
           # Hardcoded to your exact target account registry destination path
-          docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
-          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-      # STEP C: Combined full-stack apply utilizing your validated plan graph
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/my-fargate-app:latest .
+          docker push ${{ steps.login-ecr.outputs.registry }}/my-fargate-app:latest      # STEP C: Combined full-stack apply utilizing your validated plan graph
       - name: Terraform Apply (Full Stack)
         run: terraform apply -auto-approve main.tfplan
 
