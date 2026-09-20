@@ -33,9 +33,6 @@ flowchart TD
 
     ALB_East --> ECS_East
     ALB_West --> ECS_West
-```
-
----
 
 ## 🔄 Traffic Routing & Failover
 
@@ -50,19 +47,18 @@ sequenceDiagram
     participant RegionA as "Region A (us-east-1)"
     participant RegionB as "Region B (us-west-2)"
 
-    Note over Client,RegionB: Normal Operation Phase (Traffic Routing)
+    Note over Client,RegionB: Normal Operation Phase - Traffic Routing
 
-    Client->>GA: HTTP Request (Global DNS)
-    GA->>RegionA: Route Traffic (Active Endpoint)
-    RegionA-->>Client: HTTP 200 OK (Response)
+    Client->>GA: HTTP Request - Global DNS
+    GA->>RegionA: Route Traffic - Active Endpoint
+    RegionA-->>Client: HTTP 200 OK - Response
 
-    Note over Client,RegionB: Failover Simulation Phase (Outage Handling)
+    Note over Client,RegionB: Failover Simulation Phase - Outage Handling
 
-    RegionA--xRegionA: Simulate Outage / Tasks Scaled to 0
-    GA->>RegionA: Health Check Fails (Unhealthy Endpoint)
-    GA->>RegionB: Automatically Reroute Traffic (Standby Endpoint)
+    RegionA--xRegionA: Simulate Outage - Tasks Scaled to 0
+    GA->>RegionA: Health Check Fails - Unhealthy Endpoint
+    GA->>RegionB: Automatically Reroute Traffic - Standby Endpoint
 
     Client->>GA: Next HTTP Request
     GA->>RegionB: Route Traffic to Secondary Region
-    RegionB-->>Client: HTTP 200 OK (Seamless Failover)
-```
+    RegionB-->>Client: HTTP 200 OK - Seamless Failover
