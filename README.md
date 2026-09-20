@@ -33,6 +33,7 @@ flowchart TD
 
     ALB_East --> ECS_East
     ALB_West --> ECS_West
+```
 
 ## 🔄 Traffic Routing & Failover
 
@@ -62,3 +63,4 @@ sequenceDiagram
     Client->>GA: Next HTTP Request
     GA->>RegionB: Route Traffic to Secondary Region
     RegionB-->>Client: HTTP 200 OK - Seamless Failover
+```
